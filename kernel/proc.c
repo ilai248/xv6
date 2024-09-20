@@ -146,6 +146,9 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  
+  // Init the syscall mask to a simple 0 (as no syscalls will be logged).
+  p->syscallMask = 0;
   return p;
 }
 
@@ -322,6 +325,7 @@ fork(void)
   np->state = RUNNABLE;
   release(&np->lock);
 
+  np->syscallMask = p->syscallMask;
   return pid;
 }
 

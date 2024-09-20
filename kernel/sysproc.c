@@ -91,3 +91,12 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_trace(void)
+{
+  int syscallMask;
+  argint(0, &syscallMask);
+  myproc()->syscallMask = syscallMask;
+  return 0;
+}
