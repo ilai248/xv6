@@ -9,7 +9,7 @@
 #define true 1
 #define false 0
 
-enum ArgvIndexes {PROGRAM_NAME_INDEX, SYSCALL_MASK, COMMAND_NAME, COMMAND_ARGS};
+enum ArgvIndexes {PROGRAM_NAME_INDEX, SYSCALL_MASK, COMMAND};
 enum ReturnCodes {SUCCESS, ERROR};
 
 bool isFile(char* path) {
@@ -46,11 +46,11 @@ void traceCommand(char** argv, int syscallMask) {
 int main(int argc, char* argv[])
     {
     // Ensure correct argc (valid args count).
-    if (argc < COMMAND_ARGS + 1 ){
+    if (argc < COMMAND + 1 ){
         printf("Wrong Format. Correct Format is:\n\t%s %s", argv[PROGRAM_NAME_INDEX], "<Syscall Mask> <Command>\n");
         exit(ERROR);
-    } else if(!isFile(argv[COMMAND_NAME])) {
-        printf("'%s' is not a valid command (file not found).\n", argv[COMMAND_NAME]);
+    } else if(!isFile(argv[COMMAND])) {
+        printf("'%s' is not a valid command (file not found).\n", argv[COMMAND]);
         exit(ERROR);
     }
 
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
         exit(ERROR);
     }
 
-    // The argv of the command we want to send is at 'argv + COMMAND_NAME'.
-    traceCommand(argv + COMMAND_NAME, syscallMask);
+    // The argv of the command we want to send is at argv + the command's name index.
+    traceCommand(argv + COMMAND, syscallMask);
     exit(SUCCESS);
 }
