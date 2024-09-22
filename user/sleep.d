@@ -1,2 +1,1 @@
-user/sleep.o: user/sleep.c /usr/riscv64-linux-gnu/include/stdc-predef.h \
- kernel/types.h kernel/stat.h user/user.h
+user/sleep.o: user/sleep.c kernel/types.h kernel/stat.h user/user.h

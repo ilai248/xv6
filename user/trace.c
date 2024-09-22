@@ -43,8 +43,9 @@ void traceCommand(char** argv, int syscallMask) {
     } else wait(&pid);
 }
 
-int main(int argc, char* argv[])
-    {
+int main(int argc, char* argv[]) {
+    printf("Trace\n");
+
     // Ensure correct argc (valid args count).
     if (argc < COMMAND + 1 ){
         printf("Wrong Format. Correct Format is:\n\t%s %s", argv[PROGRAM_NAME_INDEX], "<Syscall Mask> <Command>\n");
