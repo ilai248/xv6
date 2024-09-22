@@ -1,0 +1,21 @@
+1. Looking at the backtrace output, which function called syscall?
+    The function that invoked "syscall" is usertrap() from "kernel/trap.c".
+
+2. What is the value of p->trapframe->a7 and what does that value represent? (Hint: look user/initcode.S, the first user program xv6 starts.)
+    The value of "p->trapframe->a7" is 7. This value is the number of syscall to execute (SYS_exec in our case).
+
+3. What was the previous mode that the CPU was in?
+    SPP is 0, thus the previous mode the cpu was on is User Mode.
+
+4. Write down the assembly instruction the kernel is panicing at. Which register corresponds to the varialable num?
+    Instruction: "lw	a3,0(zero)"
+    In this example, "lw" corresponds to the register "a3".
+
+5. Why does the kernel crash?
+    The kernel crashes with the "Load page fault" value in scause because the user attempts to read the memory at the address 0.
+    This accurres because the user tries to use address "0", which is a page owned by the kernel - and not by the user
+    (as seen by this line in "vm.c":   memset(kpgtbl, 0, PGSIZE)).
+    Thus the page that starts at 0 can't be loaded and this page fault exception is raised.
+
+6. What is the name of the binary that was running when the kernel paniced? What is its process id (pid)?
+    The binary that was running when the kernel paniced is "initcode", which has the pid 1.

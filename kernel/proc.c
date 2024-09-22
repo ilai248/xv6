@@ -26,6 +26,15 @@ extern char trampoline[]; // trampoline.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
+// Get the number of currently running processes.
+int getNProc() {
+  int nproc = 0;
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++)
+    if(p->state != UNUSED) ++nproc;
+  return nproc;
+}
+
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
@@ -146,6 +155,8 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // Init the syscall mask to a simple 0 (as no syscalls will be logged).
+  p->syscallMask = 0;
   return p;
 }
 
@@ -322,6 +333,7 @@ fork(void)
   np->state = RUNNABLE;
   release(&np->lock);
 
+  np->syscallMask = p->syscallMask;
   return pid;
 }
 
