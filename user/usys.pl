@@ -36,5 +36,10 @@ entry("getpid");
 entry("sbrk");
 entry("sleep");
 entry("uptime");
+<<<<<<< HEAD
 entry("connect");
 entry("pgaccess");
+=======
+entry("trace");
+entry("sysinfo");
+>>>>>>> 7e9070d (Completed syscall lab)
