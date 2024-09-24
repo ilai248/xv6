@@ -1,0 +1,28 @@
+1. 
+
+2.  Explain the output of vmprint in terms of Fig 3-4 from the text.
+        The output of vmprint displays a pagetable with 2 (non-null) entries.
+        The first entry (at index 0) is another pagetable which has a single entry - another pagetable that contains 4 non-null pages inside.
+        The second entry (at index 255) is a table of a very similar format to the first one
+        - where it also has a single entry inside it that is in fact a pagetable, but that table has only 3 non-null pages inside it instead of 4.
+
+    A. What does page 0 contain? What is in page 2?
+        Page 0 contains the start of the text segment -
+        the code segment in which the program's code is saved. (we can know it because it represents virtual address 0).
+        Each page's permissions are its 10 list significant bits. So we know that the permissions of the first pages are:
+        (permission bits are: DAGUXWRV).
+        Page 0 - (0x1b = 0b11011 = UXRV) Thus Execute and Read permissions are on. So this represents the text (code) segment.
+        Page 1 - (0x17 = 0b10111 = UWRV) Thus Read and Write permissions are on.
+        Page 2 - (0x07 = 0b111 = WRV)    Thus Read and Write permisisons are on, but the User permission is off.
+        This page contains the pointer to the gaurd page as it has different permissions from the stack and data pages (U is turned off):
+            "To detect a user stack overflowing the allocated stack memory, xv6 places an inaccessible guard page right below the stack by clearing the PTE_U flag.
+            If the user stack overflows and the process tries to use an address below the stack,
+            the hardware will generate a page-fault exception because the guard page is inaccessible to a program running in user mode."
+   
+    B. When running in user mode, could the process read/write the memory mapped by page 1?
+        Yes, because Page-1 has User, Write, and Read permissions turned on (it marks the data segment).
+
+    C. What does the third to last page contain?
+        The third to last page has permissions 0x13 = 0b10011 = URV. Because its permissions don't match the permissions of any other segment,
+        including the "unused" segments when they are marked as invalid (V permission bit turned off), it means the third to last page
+        points to content that was specially mapped into the user memory as Read-only.

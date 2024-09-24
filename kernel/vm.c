@@ -15,6 +15,36 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
 
+#define PAGETABLE_LEN 512
+#define MAX_NESTED_PAGES 50
+#define CHAR_FOR_NESTED_PAGE 3
+#define LAYER_STR " .."
+
+void vmprint_helper(pagetable_t pagetable, int layer) {
+  for(int i = 0; i < PAGETABLE_LEN; i++){
+    // this PTE points to a lower-level page table.
+    pte_t pte = pagetable[i];
+    if (pte == (pte_t)0) continue; // 'i' reached an undefined page.
+
+    uint64 child = PTE2PA(pte);
+    for (int j = 0; j < layer; j++) printf(" ..");
+    printf("%d: pte %p pa %p\n", i, pte, child);
+    
+    if ((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0) {
+      vmprint_helper((pagetable_t)child, layer+1);
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable) {
+  // pte_t currentTables[PAGETABLE_LEN];
+  // int currentTablesLen = 0;
+  // currentTables[currentTablesLen++] = (pagetable_t)child;
+
+  printf("page table %p\n", pagetable);
+  vmprint_helper(pagetable, 1);
+}
+
 // Make a direct-map page table for the kernel.
 pagetable_t
 kvmmake(void)
