@@ -75,10 +75,33 @@ sys_sleep(void)
 
 
 #ifdef LAB_PGTBL
-int
-sys_pgaccess(void)
+enum PgaccessParams {START_VADDR, PAGE_COUNT, ABITS_ADDR};
+
+int sys_pgaccess(void)
 {
   // lab pgtbl: your code here.
+  uint64 addr = 0, abitsAddr = 0;
+  unsigned int abits = 0;
+  int count = 0;
+  pte_t* pte = 0;
+  pagetable_t pagetable = myproc()->pagetable;
+
+  argaddr(START_VADDR, &addr);
+  argint(PAGE_COUNT, &count);
+  argaddr(ABITS_ADDR, &abitsAddr);
+  if (count < 0) return -1; // "Count" shouldn't be negative.
+
+  for(int i = 0; i < count; i++) {
+    if ((pte = walk(pagetable, addr + i*PGSIZE, 0)) == 0)
+      panic("pgaccess: null pte detected");
+    if (*pte & PTE_A) {
+      abits += 1 << i; // Add the page to the bitmap.
+      *pte ^= PTE_A; // Reset the A bit (to 0).
+    }
+  }
+  
+  if (copyout(pagetable, abitsAddr, (char*)&abits, sizeof(abits)) < 0)
+    return -1;
   return 0;
 }
 #endif

@@ -37,10 +37,6 @@ void vmprint_helper(pagetable_t pagetable, int layer) {
 }
 
 void vmprint(pagetable_t pagetable) {
-  // pte_t currentTables[PAGETABLE_LEN];
-  // int currentTablesLen = 0;
-  // currentTables[currentTablesLen++] = (pagetable_t)child;
-
   printf("page table %p\n", pagetable);
   vmprint_helper(pagetable, 1);
 }
