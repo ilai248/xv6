@@ -141,6 +141,13 @@ found:
     return 0;
   }
 
+  // Allocate the usyscall page.
+  if((p->syspage = (struct usyscall*)kalloc()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -157,7 +164,7 @@ found:
 
   // Init the syscall mask to a simple 0 (as no syscalls will be logged).
   p->syscallMask = 0;
-  // p->syspage->pid = p->pid;
+  p->syspage->pid = p->pid;
   return p;
 }
 
@@ -169,6 +176,8 @@ freeproc(struct proc *p)
 {
   if(p->trapframe)
     kfree((void*)p->trapframe);
+  if(p->syspage)
+    kfree((void*)p->syspage);
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
@@ -215,7 +224,7 @@ proc_pagetable(struct proc *p)
   }
 
   // Map the syscall-optimization page.
-  if (mappages(pagetable, USYSCALL, PGSIZE, (uint64)(p->syspage), PTE_R) < 0) {
+  if (mappages(pagetable, USYSCALL, PGSIZE, (uint64)(p->syspage), PTE_R | PTE_U) < 0) {
     uvmunmap(pagetable, TRAPFRAME, 1, 0);
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
     uvmfree(pagetable, 0);
@@ -345,7 +354,6 @@ fork(void)
   release(&np->lock);
 
   np->syscallMask = p->syscallMask;
-  // np->syspage.pid = pid;
   return pid;
 }
 

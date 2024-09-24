@@ -1,4 +1,6 @@
-1. 
+1. Which other xv6 system call(s) could be made faster using this shared page? Explain how.
+    Another system call that can be optimized like that is 'uptime'.
+    The timestamp that marks the start of the program's execution an be saved in the USYSCALL page.
 
 2.  Explain the output of vmprint in terms of Fig 3-4 from the text.
         The output of vmprint displays a pagetable with 2 (non-null) entries.
@@ -24,5 +26,5 @@
 
     C. What does the third to last page contain?
         The third to last page has permissions 0x13 = 0b10011 = URV. Because its permissions don't match the permissions of any other segment,
-        including the "unused" segments when they are marked as invalid (V permission bit turned off), it means the third to last page
-        points to content that was specially mapped into the user memory as Read-only.
+        including the "unused" segments when they are marked as invalid (V permission bit turned off), it means the third to last page points to
+        content that was specially mapped into the user memory as Read-only = This is the USYSCALL page that was mapped in the previous excersize.
