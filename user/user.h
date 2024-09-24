@@ -23,6 +23,8 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+void trace(int);
+int sysinfo(struct sysinfo*);
 
 #ifdef LAB_NET
 int connect(uint32, uint16, uint16);
