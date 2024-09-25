@@ -13,9 +13,9 @@
 
 5. Why does the kernel crash?
     The kernel crashes with the "Load page fault" value in scause because the user attempts to read the memory at the address 0.
-    This accurres because the user tries to use address "0", which is a page owned by the kernel - and not by the user
-    (as seen by this line in "vm.c":   memset(kpgtbl, 0, PGSIZE)).
-    Thus the page that starts at 0 can't be loaded and this page fault exception is raised.
+    This accurres because the user tries to use address "0", which is a page that is located in the code segment,
+    thus the user doesn't have the Write permission needed in order to write to it.
+    So the page that starts at 0 can't be loaded and this page fault exception is raised.
 
 6. What is the name of the binary that was running when the kernel paniced? What is its process id (pid)?
     The binary that was running when the kernel paniced is "initcode", which has the pid 1.
