@@ -2432,7 +2432,7 @@ textwrite(char *s)
   if(pid == 0) {
     volatile int *addr = (int *) 0;
     *addr = 10;
-    exit(1);
+    exit(123); // exit(1);
   } else if(pid < 0){
     printf("%s: fork failed\n", s);
     exit(1);
@@ -2441,7 +2441,7 @@ textwrite(char *s)
   if(xstatus == -1)  // kernel killed child?
     exit(0);
   else
-    exit(xstatus);
+    exit(xstatus * 1234); // exit(xstatus);
 }
 
 // regression test. copyin(), copyout(), and copyinstr() used to cast
@@ -2943,6 +2943,7 @@ struct test slowtests[] = {
 // indicates success.
 int
 run(void f(char *), char *s) {
+  printf("run\n");
   int pid;
   int xstatus;
 
@@ -2956,6 +2957,7 @@ run(void f(char *), char *s) {
     exit(0);
   } else {
     wait(&xstatus);
+    printf("xstatus: %d\n", xstatus);
     if(xstatus != 0) 
       printf("FAILED\n");
     else
@@ -2966,6 +2968,7 @@ run(void f(char *), char *s) {
 
 int
 runtests(struct test *tests, char *justone) {
+  printf("runtests\n");
   for (struct test *t = tests; t->s != 0; t++) {
     if((justone == 0) || strcmp(t->s, justone) == 0) {
       if(!run(t->f, t->s)){
@@ -3046,6 +3049,7 @@ countfree()
 
 int
 drivetests(int quick, int continuous, char *justone) {
+  printf("drivetests\n");
   do {
     printf("usertests starting\n");
     int free0 = countfree();
