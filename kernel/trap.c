@@ -16,6 +16,8 @@ void kernelvec();
 
 extern int devintr();
 
+void jmpToUserAddr(uint64 dst);
+
 void
 trapinit(void)
 {
@@ -77,17 +79,27 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+    acquire(&tickslock);
+    uint currTicks = ticks;
+    release(&tickslock);
+
+    // Trigger the alarm handler.
+    if (p->lastAlarm > 0 && !p->executingAlarm) {
+      if (p->lastAlarm + p->alarmInterval <= currTicks) {
+        p->lastAlarm = currTicks;
+        p->savedTrapframe = *p->trapframe;
+        p->executingAlarm = 1;
+        jmpToUserAddr(p->alarmHandler);
+      }
+    }
     yield();
+  }
 
   usertrapret();
 }
 
-//
-// return to user space
-//
-void
-usertrapret(void)
+void jmpToUserAddr(uint64 dst)
 {
   struct proc *p = myproc();
 
@@ -117,7 +129,7 @@ usertrapret(void)
   w_sstatus(x);
 
   // set S Exception Program Counter to the saved user pc.
-  w_sepc(p->trapframe->epc);
+  w_sepc(dst);
 
   // tell trampoline.S the user page table to switch to.
   uint64 satp = MAKE_SATP(p->pagetable);
@@ -127,6 +139,15 @@ usertrapret(void)
   // and switches to user mode with sret.
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
   ((void (*)(uint64))trampoline_userret)(satp);
+}
+
+//
+// return to user space
+//
+inline void usertrapret(void)
+{
+  // set S Exception Program Counter to the saved user pc.
+  jmpToUserAddr(myproc()->trapframe->epc);
 }
 
 // interrupts and exceptions from kernel code go here via kernelvec,

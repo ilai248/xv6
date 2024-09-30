@@ -25,6 +25,23 @@ static struct {
 
 static char digits[] = "0123456789abcdef";
 
+#define RET_ADDR_OFFSET -8
+#define PREV_S0_OFFSET -16
+
+inline void backtrace() {
+  uint64 s0 = r_fp(), ret_addr = 0, s0_ptr = 0;
+  uint64 pageNum = PGROUNDDOWN(s0);
+
+  printf("backtrace:\n");
+  do {
+    ret_addr = s0 + RET_ADDR_OFFSET;
+    s0_ptr = s0 + PREV_S0_OFFSET;
+
+    printf("%p\n", *(uint64*)ret_addr);
+    s0 = *(uint64*)s0_ptr;
+  } while (PGROUNDDOWN(s0) == pageNum);
+}
+
 static void
 printint(int xx, int base, int sign)
 {
@@ -115,13 +132,13 @@ printf(char *fmt, ...)
     release(&pr.lock);
 }
 
-void
-panic(char *s)
+void panic(char *s)
 {
   pr.locking = 0;
   printf("panic: ");
   printf(s);
-  printf("\n");
+  printf("\n\n");
+  backtrace(); // Show backtrace.
   panicked = 1; // freeze uart output from other CPUs
   for(;;)
     ;
