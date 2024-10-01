@@ -1,13 +1,12 @@
 	.text
-
 	/*
-         * save the old thread's registers,
-         * restore the new thread's registers.
-         */
+	* save the old thread's registers,
+	* restore the new thread's registers.
+	*/
 
 	.globl thread_switch
 thread_switch:
-	sd ra, 0(a0)
+	# ra was already set in "thread_yield" - so no need to set it here.
 	sd sp, 8(a0)
 	sd s0, 16(a0)
 	sd s1, 24(a0)
@@ -21,11 +20,7 @@ thread_switch:
 	sd s9, 88(a0)
 	sd s10, 96(a0)
 	sd s11, 104(a0)
-
-	# Save the PC register.
-	# auipc a0, 0
-	# sd a0, 112(a0)
-
+	
 	ld ra, 0(a1)
 	ld sp, 8(a1)
 	ld s0, 16(a1)
