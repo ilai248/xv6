@@ -14,7 +14,6 @@ typedef struct thread_context {
   uint64 ra;
   uint64 sp;
 
-  // callee-saved
   uint64 s0;
   uint64 s1;
   uint64 s2;
@@ -27,8 +26,6 @@ typedef struct thread_context {
   uint64 s9;
   uint64 s10;
   uint64 s11;
-
-  // uint64 epc;
 } thread_context;
 
 struct thread {
@@ -39,6 +36,12 @@ struct thread {
 struct thread all_thread[MAX_THREAD];
 struct thread *current_thread;
 extern void thread_switch(uint64, uint64);
+
+char* statename(int state) {
+  if (state == FREE) return "FREE";
+  else if (state == RUNNABLE) return "RUNNABLE";
+  else return "RUNNING";
+}
 
 void 
 thread_init(void)
@@ -55,15 +58,13 @@ thread_init(void)
 void 
 thread_schedule(void)
 {
-  // printf("state of prev thread is: %d, addr: %p\n", current_thread->state, &current_thread->state);
   struct thread *t, *next_thread;
 
+  printf("Thread List:\n");
   next_thread = 0;
-  t = current_thread + 1;
+  t = all_thread;
   for(int i = 0; i < MAX_THREAD; i++){
-    if(t >= all_thread + MAX_THREAD)
-      t = all_thread;
-    printf("%d) ra %p, state %d\n", i, t->context.ra, t->state);
+    printf("%d) ra %p, state %d (%s)\n", i, t->context.ra, t->state, statename(t->state));
     ++t;
   }
 
@@ -73,7 +74,7 @@ thread_schedule(void)
   for(int i = 0; i < MAX_THREAD; i++){
     if(t >= all_thread + MAX_THREAD)
       t = all_thread;
-    // printf("all_thread %p, i %d, t->context.ra %p, t->state %d\n", all_thread, i, t->context.ra, t->state);
+
     if(t->state == RUNNABLE) {
       next_thread = t;
       break;
@@ -85,24 +86,14 @@ thread_schedule(void)
     printf("thread_schedule: no runnable threads\n");
     exit(-1);
   }
-  // printf("Next Thread: %p\n", next_thread->context.ra);
 
   if (current_thread != next_thread) {         /* switch threads?  */
-    // if (current_thread->state != FREE) {
-    //   current_thread->state = RUNNABLE;
-    //   // printf("Setting %p State to RUNNABLE.\n", current_thread->context.ra);
-    // }
     next_thread->state = RUNNING;
     t = current_thread;
     current_thread = next_thread;
 
-    // printf("state of prev thread is: %d, addr: %p\n", t->state, &t->state);
     thread_switch((uint64)&t->context, (uint64)&current_thread->context); /* (Prev Context, New Context) */
-    
-    // printf("Jumping to epc: %p\n", current_thread->context.epc);
-    // ((void(*)())current_thread->context.epc)(); // Jump to the context's epc.
-  } else
-    next_thread = 0;
+  } else next_thread = 0;
 }
 
 void 
@@ -118,22 +109,15 @@ thread_create(void (*func)())
     printf("MAX_THREAD limit was reached");
     return;
   }
+
   t->state = RUNNABLE;
   t->context.sp = (uint64)t->stack;
   t->context.ra = (uint64)func;
 }
 
-static inline uint64 r_ra()
-{
-  uint64 x;
-  asm volatile("mv %0, ra" : "=r" (x) );
-  return x;
-}
-
 void 
 thread_yield(void)
 {
-  current_thread->context.ra = r_ra(); // Save the return address as the thread's ra.
   current_thread->state = RUNNABLE;
   thread_schedule();
 }
@@ -157,7 +141,6 @@ thread_a(void)
   }
   printf("thread_a: exit after %d\n", a_n);
 
-  printf("Setting FREE\n");
   current_thread->state = FREE;
   thread_schedule();
 }
@@ -178,7 +161,6 @@ thread_b(void)
   }
   printf("thread_b: exit after %d\n", b_n);
 
-  printf("Setting FREE\n");
   current_thread->state = FREE;
   thread_schedule();
 }
@@ -192,14 +174,14 @@ thread_c(void)
   while(a_started == 0 || b_started == 0)
     thread_yield();
   
-  for (i = 0; i < 100; i++) {
+  // The following loop's iteration count is changed to 5 in order to ease the debugging process.
+  for (i = 0; i < 5 /* 100 */; i++) {
     printf("thread_c %d\n", i);
     c_n += 1;
     thread_yield();
   }
   printf("thread_c: exit after %d\n", c_n);
 
-  printf("Setting FREE\n");
   current_thread->state = FREE;
   thread_schedule();
 }
