@@ -1,0 +1,14 @@
+1.  This is caused because of a race condition between the 2 threads (with the following event sequence):
+    thread1: put(1, 100)
+    thread2: put(6, 100)
+
+    thread1: Check if the key's hash (1 % 5 = 1) already exists (key not found)
+    thread2: Check if the key's hash (6 % 5 = 1) already exists (key not found)
+
+    thread1: Call insert() with the key's current entry (NULL)
+    thread2: Call insert() with the key's current entry (NULL)
+
+    thread1: Insert the new key (1) before the given entry (the entry that insert was called with, NULL)
+    thread2: Insert the new key (6) before the given entry (the entry that insert was called with, NULL)
+
+    Only one of the keys was actually inserted, so one of the keys is missing.
