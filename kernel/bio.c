@@ -23,6 +23,8 @@
 #include "fs.h"
 #include "buf.h"
 
+#define HASHMAP_LEN 97
+
 struct {
   struct spinlock lock;
   struct buf buf[NBUF];
@@ -33,23 +35,41 @@ struct {
   struct buf head;
 } bcache;
 
+typedef struct cache_bucket {
+  struct buf* head;
+  struct spinlock lock;
+} cache_bucket;
+
+cache_bucket cache_hash[HASHMAP_LEN];
+
+int hash(struct buf* b) {
+  return b->dev ^ b->blockno;
+}
+
 void
 binit(void)
 {
   struct buf *b;
+  cache_bucket bucket;
 
-  initlock(&bcache.lock, "bcache");
-
-  // Create linked list of buffers
-  bcache.head.prev = &bcache.head;
-  bcache.head.next = &bcache.head;
-  for(b = bcache.buf; b < bcache.buf+NBUF; b++){
-    b->next = bcache.head.next;
-    b->prev = &bcache.head;
+  for (b = bcache.buf; b < bcache.buf + NBUF; b++)
     initsleeplock(&b->lock, "buffer");
-    bcache.head.next->prev = b;
-    bcache.head.next = b;
+  for (bucket = cache_hash; bucket < cache_hash + HASHMAP_LEN; bucket++) {
+    initlock(&bucket.lock, "bcache");
+    bucket.head = 0;
   }
+
+  // initlock(&bcache.lock, "bcache");
+  // // Create linked list of buffers
+  // bcache.head.prev = &bcache.head;
+  // bcache.head.next = &bcache.head;
+  // for(b = bcache.buf; b < bcache.buf+NBUF; b++){
+  //   b->next = bcache.head.next;
+  //   b->prev = &bcache.head;
+  //   initsleeplock(&b->lock, "buffer");
+  //   bcache.head.next->prev = b;
+  //   bcache.head.next = b;
+  // }
 }
 
 // Look through buffer cache for block on device dev.
