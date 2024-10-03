@@ -151,12 +151,19 @@ brelse(struct buf *b)
   cache_bucket* bucket = &cache_hash[buf_hash];
 
   acquire(&bucket->lock);
+
+  // We don't care if this part is in a race condition, because we only change the refcount to 0.
+  // We just need to know that when we changing the actual references of 'b' we don't get race condition.
   b->refcnt--;
   if (b->refcnt == 0) {
-    // no one is waiting for it.
-    if (b->next) b->next->prev = b->prev;
-    if (b->prev) b->prev->next = b->next;
-    if (bucket->head == b) bucket->head = b->next;
+    acquire(&bcache.lock);
+    if (b->refcnt == 0) {
+      // no one is waiting for it.
+      if (b->next) b->next->prev = b->prev;
+      if (b->prev) b->prev->next = b->next;
+      if (bucket->head == b) bucket->head = b->next;
+    }
+    release(&bcache.lock);
   }
   release(&bucket->lock);
 }
