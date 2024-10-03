@@ -82,25 +82,12 @@ bget(uint dev, uint blockno)
       return b;
     }
   }
-  release(&bucket->lock);
 
   // Not cached.
   // Recycle the least recently used (LRU) unused buffer.
   acquire(&bcache.lock);
   for (int i = 0; i < NBUF; i++) {
     b = &bcache.buf[i];
-    bucket = &cache_hash[hash(b->dev, b->blockno)];
-    acquire(&bucket->lock);
-
-    // Block already added.
-    if (b->dev == dev && b->blockno == blockno) {
-      b->refcnt++;
-      release(&bcache.lock);
-      release(&bucket->lock);
-      acquiresleep(&b->lock);
-      return b;
-    }
-
     if (b->refcnt == 0) {
       b->dev = dev;
       b->blockno = blockno;
@@ -115,15 +102,15 @@ bget(uint dev, uint blockno)
       b->next = cache_head;
       cache_hash[buf_hash].head = b;
 
-      release(&bcache.lock);
       release(&bucket->lock);
+      release(&bcache.lock);
       acquiresleep(&b->lock);
       return b;
     }
-    release(&bucket->lock);
   }
 
   release(&bcache.lock);
+  release(&bucket->lock);
   panic("bget: no buffers");
 }
 
