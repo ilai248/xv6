@@ -91,3 +91,16 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64 sys_symlink(void)
+{
+  uint64 target = 0, path = 0;
+  argaddr(0, &target);
+  argaddr(1, &path);
+
+  char* targetStr = (char*)target;
+  char* pathStr = (char*)path;
+
+  printf("Target STR: %s\nPath Str: %s\n", targetStr, pathStr);
+  return 0;
+}
