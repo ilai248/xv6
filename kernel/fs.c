@@ -369,6 +369,15 @@ iunlockput(struct inode *ip)
   iput(ip);
 }
 
+uint* readIndirectBlock(uint dev, uint* addrPtr) {
+  // Load indirect block, allocating if necessary.
+  if (*addrPtr == 0) {
+    *addrPtr = balloc(dev);
+    if(*addrPtr == 0) return 0;
+  }
+  return (uint*)bread(dev, *addrPtr)->data;
+}
+
 // Inode content
 //
 // The content (data) associated with each inode is stored
@@ -382,8 +391,10 @@ iunlockput(struct inode *ip)
 static uint
 bmap(struct inode *ip, uint bn)
 {
+  printf("bmap\n");
   uint addr, *a;
-  struct buf *bp;
+  struct buf* bp;
+  struct buf* innerBP;
 
   if(bn < NDIRECT){
     if((addr = ip->addrs[bn]) == 0){
@@ -417,7 +428,58 @@ bmap(struct inode *ip, uint bn)
     return addr;
   }
 
+  bn -= NINDIRECT;
+  if(bn < NDOUBLE_INDIRECT) {
+    // Load double indirect block, allocating if necessary.
+    if((addr = ip->addrs[NDIRECT + 1]) == 0){
+      addr = balloc(ip->dev);
+      if(addr == 0) return 0;
+      ip->addrs[NDIRECT + 1] = addr;
+    }
+
+    // Read the double indirect block's data to find the inner indirect page.
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+
+    // Load the refrenced indirect block, allocating if necessary.
+    if((addr = a[bn / NINDIRECT]) == 0){
+      addr = balloc(ip->dev);
+      if(addr == 0) return 0;
+      a[bn / NINDIRECT] = addr;
+    }
+
+    // Read the indirect block's data to find the actual block's inode.
+    innerBP = bread(ip->dev, addr);
+    a = (uint*)innerBP->data;
+
+    // Allocate the block if it doesn't already exist.
+    if((addr = a[bn % NINDIRECT]) == 0){
+      addr = balloc(ip->dev);
+      if(addr) {
+        a[bn % NINDIRECT] = addr;
+        log_write(innerBP);
+      }
+    }
+    brelse(innerBP);
+    brelse(bp);
+    return addr;
+  }
+
   panic("bmap: out of range");
+}
+
+void freeIndirect(struct inode* ip, uint* addrPtr) {
+  uint addr = *addrPtr, j = 0;
+  if (addr) {
+    struct buf* bp = bread(ip->dev, addr);
+    uint* a = (uint*)bp->data;
+    for (j = 0; j < NINDIRECT; j++)
+      if (a[j]) bfree(ip->dev, a[j]);
+    
+    brelse(bp);
+    bfree(ip->dev, addr);
+    *addrPtr = 0;
+  }
 }
 
 // Truncate inode (discard contents).
@@ -425,6 +487,7 @@ bmap(struct inode *ip, uint bn)
 void
 itrunc(struct inode *ip)
 {
+  printf("itrunc\n");
   int i, j;
   struct buf *bp;
   uint *a;
@@ -436,16 +499,19 @@ itrunc(struct inode *ip)
     }
   }
 
-  if(ip->addrs[NDIRECT]){
-    bp = bread(ip->dev, ip->addrs[NDIRECT]);
+  // Free the indirect block.
+  freeIndirect(ip, &ip->addrs[NDIRECT]);
+  
+  // Free the double-indirect block.
+  if(ip->addrs[NDIRECT + 1]){
+    bp = bread(ip->dev, ip->addrs[NDIRECT + 1]);
     a = (uint*)bp->data;
     for(j = 0; j < NINDIRECT; j++){
-      if(a[j])
-        bfree(ip->dev, a[j]);
+      if(a[j]) freeIndirect(ip, &a[j]);
     }
     brelse(bp);
-    bfree(ip->dev, ip->addrs[NDIRECT]);
-    ip->addrs[NDIRECT] = 0;
+    bfree(ip->dev, ip->addrs[NDIRECT + 1]);
+    ip->addrs[NDIRECT + 1] = 0;
   }
 
   ip->size = 0;
