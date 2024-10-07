@@ -316,7 +316,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
-    if (*pte & PTE_W) *pte ^= PTE_W + PTE_COW; // Replace PTE_W with PTE_COW.
+    if (*pte & PTE_W) *pte ^= PTE_W ^ PTE_COW; // Replace PTE_W with PTE_COW (XORs pte with both the W and COW flags - removing W and setting COW).
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     // if((mem = kalloc()) == 0)

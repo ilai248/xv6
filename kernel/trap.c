@@ -6,6 +6,8 @@
 #include "proc.h"
 #include "defs.h"
 
+#define STORE_PAGEFAULT 0xf
+
 struct spinlock tickslock;
 uint ticks;
 
@@ -67,6 +69,21 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if (r_scause() == STORE_PAGEFAULT) {
+    printf("Store Page Fault\n");
+    printf("stval: %x\n", (pte_t*)r_stval());
+    pte_t* pte = (pte_t*)r_stval();
+    *pte ^= PTE_W ^ PTE_COW;
+
+printf("Before PTE\n");
+    uint64 pa = PTE2PA(*pte);
+printf("After PTE\n");
+    // uint flags = PTE_FLAGS(*pte); 
+    char *mem;
+
+    if((mem = kalloc()) == 0) panic("Cannot handle pagefault - no memory left on device");
+    memmove(mem, (char*)pa, PGSIZE);
+    // if(mappages(p->pagetable, i, PGSIZE, pa, flags) != 0) panic("Cannot handle pagefault - mappages failed");
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
