@@ -62,17 +62,9 @@ binit(void)
   }
 }
 
-// Look through buffer cache for block on device dev.
-// If not found, allocate a buffer.
-// In either case, return locked buffer.
-static struct buf*
-bget(uint dev, uint blockno)
-{
-  struct buf *b;
-  int buf_hash = hash(dev, blockno);
-  cache_bucket* bucket = &cache_hash[buf_hash];
-
+struct buf* scanBucket(cache_bucket* bucket, uint dev, uint blockno) {
   // Is the block already cached?
+  struct buf* b = 0;
   acquire(&bucket->lock);
   for (b = bucket->head; b != 0; b = b->next) {
     if (b->dev == dev && b->blockno == blockno) {
@@ -82,12 +74,42 @@ bget(uint dev, uint blockno)
       return b;
     }
   }
+  release(&bucket->lock);
+  return 0;
+}
+
+// Look through buffer cache for block on device dev.
+// If not found, allocate a buffer.
+// In either case, return locked buffer.
+static struct buf*
+bget(uint dev, uint blockno)
+{
+  struct buf *b;
+  int buf_hash = hash(dev, blockno), other_buf_hash = 0;
+  cache_bucket* bucket = &cache_hash[buf_hash];
+  cache_bucket* other_bucket = 0;
+  if ((b = scanBucket(bucket, dev, blockno))) return b;
 
   // Not cached.
   // Recycle the least recently used (LRU) unused buffer.
   acquire(&bcache.lock);
+
+  // Scan again in buf was added during the acquiring process.
+  if ((b = scanBucket(bucket, dev, blockno))) return b;
+
   for (int i = 0; i < NBUF; i++) {
     b = &bcache.buf[i];
+    other_buf_hash = hash(b->dev, b->blockno);
+    other_bucket = &cache_hash[other_buf_hash];
+    int didLock = 0;
+
+    // Could collide with brelse and read the value while it is decremented but this conflict wouldn't have negative impact so its ok to allow it.
+    if (b->refcnt == 0 && other_buf_hash != buf_hash) {
+      acquire(&other_bucket->lock);
+      didLock = 1;
+    }
+
+    // Lock is already acquired (either by bucket->lock or other_bucket->lock).
     if (b->refcnt == 0) {
       b->dev = dev;
       b->blockno = blockno;
@@ -96,21 +118,22 @@ bget(uint dev, uint blockno)
       b->prev = 0;
 
       // Add the new block to the buf hash.
-      // acquire(&bucket->lock);
-      struct buf* cache_head = cache_hash[buf_hash].head;
+      acquire(&bucket->lock);
+      struct buf* cache_head = bucket->head;
       if (cache_head) cache_head->prev = b;
       b->next = cache_head;
-      cache_hash[buf_hash].head = b;
+      bucket->head = b;
 
+      if (didLock) release(&other_bucket->lock);
       release(&bucket->lock);
       release(&bcache.lock);
       acquiresleep(&b->lock);
       return b;
     }
+    if (didLock) release(&other_bucket->lock);
   }
 
   release(&bcache.lock);
-  release(&bucket->lock);
   panic("bget: no buffers");
 }
 
@@ -154,16 +177,11 @@ brelse(struct buf *b)
 
   // We don't care if this part is in a race condition, because we only change the refcount to 0.
   // We just need to know that when we changing the actual references of 'b' we don't get race condition.
-  b->refcnt--;
-  if (b->refcnt == 0) {
-    acquire(&bcache.lock);
-    if (b->refcnt == 0) {
-      // no one is waiting for it.
-      if (b->next) b->next->prev = b->prev;
-      if (b->prev) b->prev->next = b->next;
-      if (bucket->head == b) bucket->head = b->next;
-    }
-    release(&bcache.lock);
+  if (--b->refcnt == 0) {
+    // no one is waiting for it.
+    if (b->next) b->next->prev = b->prev;
+    if (b->prev) b->prev->next = b->next;
+    if (bucket->head == b) bucket->head = b->next;
   }
   release(&bucket->lock);
 }
