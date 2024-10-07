@@ -23,7 +23,6 @@ thread_switch:
 	
 	ld ra, 0(a1)
 	ld sp, 8(a1) # -> Inserts trash values to current_thread.
-	beq a2, zero, end
 
 	ld s0, 16(a1)
 	ld s1, 24(a1) # Frees last thread (main problem).
