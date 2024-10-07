@@ -31,11 +31,12 @@ typedef struct thread_context {
 struct thread {
   char              stack[STACK_SIZE]; /* the thread's stack */
   int               state;             /* FREE, RUNNING, RUNNABLE */
+  int               hasRun;
   thread_context    context;           /* the collee registers */
 };
 struct thread all_thread[MAX_THREAD];
 struct thread *current_thread;
-extern void thread_switch(uint64, uint64);
+extern void thread_switch(uint64, uint64, uint64);
 
 char* statename(int state) {
   if (state == FREE) return "FREE";
@@ -55,26 +56,37 @@ thread_init(void)
   current_thread->state = RUNNING;
 }
 
+void printContext(struct thread* t) {
+  printf("Thread Context (%x, %x, %x):\n", t->context.ra, t->context.sp, t->context.s0);
+  for (int i = 0; i < 14; i++) printf("%x, ", ((uint64*)&t->context)[i]); // Print current register.
+  printf("\n");
+}
+
+void printThreads() {
+  struct thread* t;
+
+  printf("Thread List (%p):\n", all_thread);
+  t = all_thread;
+  for(int i = 0; i < MAX_THREAD; i++){
+    if (t == current_thread) printf("[*]\t");
+    printf("%d) state %d (%s)\n", i, t->state, statename(t->state));
+    ++t;
+  }
+}
+
 void 
 thread_schedule(void)
 {
   struct thread *t, *next_thread;
-
-  printf("Thread List:\n");
-  next_thread = 0;
-  t = all_thread;
-  for(int i = 0; i < MAX_THREAD; i++){
-    printf("%d) ra %p, state %d (%s)\n", i, t->context.ra, t->state, statename(t->state));
-    ++t;
-  }
+  // printThreads();
 
   /* Find another runnable thread. */
+  // printf("Runnable? %d\n", current_thread->state);
   next_thread = 0;
   t = current_thread + 1; // Start searching at the current thread.
   for(int i = 0; i < MAX_THREAD; i++){
     if(t >= all_thread + MAX_THREAD)
       t = all_thread;
-
     if(t->state == RUNNABLE) {
       next_thread = t;
       break;
@@ -82,18 +94,40 @@ thread_schedule(void)
     ++t;
   }
 
+  // No available thread found (including the currently executing thread).
   if (next_thread == 0) {
     printf("thread_schedule: no runnable threads\n");
     exit(-1);
   }
 
+  // printf("hasRun: %d\n", current_thread->hasRun);
+  // printf("\n");
+  // If we are actually switching threads -> Set the next thread's state to RUNNING and switch the registers.
   if (current_thread != next_thread) {         /* switch threads?  */
+    // printf("Current Thread: %d\n", current_thread->state);
     next_thread->state = RUNNING;
     t = current_thread;
     current_thread = next_thread;
 
-    thread_switch((uint64)&t->context, (uint64)&current_thread->context); /* (Prev Context, New Context) */
-  } else next_thread = 0;
+    // printContext(t);
+    if (current_thread->hasRun) current_thread->hasRun = 1;
+    thread_switch((uint64)&t->context, (uint64)&current_thread->context, current_thread->hasRun++); /* (Prev Context, New Context) */
+    // printThreads();
+    // printf("\n");
+    // printContext(current_thread);
+    // printf("\nStack: %p\n", current_thread->stack);
+
+    // printf("Thread List (%p):\n", all_thread);
+    // next_thread = 0;
+    // t = all_thread;
+    // for(int i = 0; i < MAX_THREAD; i++){
+    //   printf("%d) state %d (%s)\n", i, t->state, statename(t->state));
+    //   ++t;
+    // }
+  } else {
+    current_thread->state = RUNNING;
+    next_thread = 0;
+  }
 }
 
 void 
@@ -110,14 +144,17 @@ thread_create(void (*func)())
     return;
   }
 
+  // Set the thread's state to RUNNABLE and set its stack and starting point ("func") as "sp" and "ra" respectively.
   t->state = RUNNABLE;
-  t->context.sp = (uint64)t->stack;
+  t->hasRun = 0;
+  t->context.sp = (uint64)t->stack + STACK_SIZE;
   t->context.ra = (uint64)func;
 }
 
 void 
 thread_yield(void)
 {
+  // printf("Setting state to runnable\n");
   current_thread->state = RUNNABLE;
   thread_schedule();
 }
@@ -175,7 +212,7 @@ thread_c(void)
     thread_yield();
   
   // The following loop's iteration count is changed to 5 in order to ease the debugging process.
-  for (i = 0; i < 5 /* 100 */; i++) {
+  for (i = 0; i < 100; i++) {
     printf("thread_c %d\n", i);
     c_n += 1;
     thread_yield();

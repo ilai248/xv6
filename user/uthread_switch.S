@@ -22,12 +22,14 @@ thread_switch:
 	sd s11, 104(a0)
 	
 	ld ra, 0(a1)
-	ld sp, 8(a1)
+	ld sp, 8(a1) # -> Inserts trash values to current_thread.
+	beq a2, zero, end
+
 	ld s0, 16(a1)
-	ld s1, 24(a1)
+	ld s1, 24(a1) # Frees last thread (main problem).
 	ld s2, 32(a1)
 	ld s3, 40(a1)
-	ld s4, 48(a1)
+	ld s4, 48(a1) # Makes all vals in all_thread FREE or trash. Probably only a problem if the rest of the registers aren't perserved
 	ld s5, 56(a1)
 	ld s6, 64(a1)
 	ld s7, 72(a1)
@@ -35,4 +37,6 @@ thread_switch:
 	ld s9, 88(a1)
 	ld s10, 96(a1)
 	ld s11, 104(a1)
+
+	end:
 	ret    /* return to ra */
