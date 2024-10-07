@@ -111,7 +111,7 @@ bget(uint dev, uint blockno)
 
     // Lock is already acquired (either by bucket->lock or other_bucket->lock).
     if (b->refcnt == 0) {
-      b->dev = dev;
+      b->dev = dev; // Only changed if refcnt is 0, thus avoiding brelse race condition.
       b->blockno = blockno;
       b->valid = 0;
       b->refcnt = 1;
