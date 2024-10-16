@@ -1,3 +1,5 @@
+#include "memlayout.h"
+
 struct buf;
 struct context;
 struct file;
@@ -60,6 +62,11 @@ void            ramdiskintr(void);
 void            ramdiskrw(struct buf*);
 
 // kalloc.c
+#define MAX_PAGE_NUM PHYSTOP/PGSIZE
+#define COW_PGCOUNT(pa) cowPages[(uint64)pa/PGSIZE]
+
+extern int cowPages[MAX_PAGE_NUM];
+extern struct spinlock cowRefLock;
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
@@ -143,6 +150,7 @@ void            syscall();
 
 // trap.c
 extern uint     ticks;
+int             uncow_page(pagetable_t pagetable, uint64 va);
 void            trapinit(void);
 void            trapinithart(void);
 extern struct spinlock tickslock;

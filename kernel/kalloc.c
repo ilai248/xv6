@@ -9,6 +9,9 @@
 #include "riscv.h"
 #include "defs.h"
 
+int cowPages[MAX_PAGE_NUM];
+struct spinlock cowRefLock;
+
 void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
@@ -51,6 +54,17 @@ kfree(void *pa)
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
+  // Don't decrement the count if it is already 0.
+  acquire(&cowRefLock);
+  if (COW_PGCOUNT(pa) > 0) { // Is pa used?
+    if (--COW_PGCOUNT(pa) > 0) { // Decrement pa ref count.
+      // printf("Decremented Count: %d\n", COW_PGCOUNT(pa));
+      release(&cowRefLock);
+      return;
+    }
+  }
+  release(&cowRefLock);
+
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
 
@@ -74,6 +88,7 @@ kalloc(void)
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;
+  COW_PGCOUNT(r) += 1; // Can't cause race condition as this page isn't used yet (and we hold the kmem lock).
   release(&kmem.lock);
 
   if(r)

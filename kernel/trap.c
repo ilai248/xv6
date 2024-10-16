@@ -6,6 +6,8 @@
 #include "proc.h"
 #include "defs.h"
 
+#define WRITE_PAGE_FAULT_SCAUSE 0xf
+
 struct spinlock tickslock;
 uint ticks;
 
@@ -27,6 +29,44 @@ void
 trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
+}
+
+int uncow_page(pagetable_t pagetable, uint64 va) {
+  // Get the page of va.
+  va = PGROUNDDOWN(va);
+
+  uint64 pa;
+  uint flags;
+  char *mem;
+  pte_t* pte = walk(pagetable, r_stval(), 0);
+  if (!(*pte & PTE_COW)) return 0; // Fail if not a COW page.
+
+  if((*pte & PTE_V) == 0)
+    panic("uncow_page: page not present");
+  pa = PTE2PA(*pte);
+  flags = PTE_FLAGS(*pte);
+  flags ^= PTE_COW + PTE_W;
+
+  if((mem = kalloc()) == 0)
+    goto err;
+  memmove(mem, (char*)pa, PGSIZE);
+  
+  uvmunmap(pagetable, va, 1 /* Unmap 1 Page */, 0 /* Don't Free */);
+  if(mappages(pagetable, va, PGSIZE, (uint64)mem, flags) != 0){
+    kfree(mem);
+    // printf("ERROR\n");
+    goto err;
+  }
+
+  // Decrease the page's refcount.
+  acquire(&cowRefLock);
+  // printf("Uncopying: %p, count: %d (is free?)\n", pa, COW_PGCOUNT(pa));
+  --COW_PGCOUNT(pa);
+  release(&cowRefLock);
+  return 1; // Success.
+
+ err:
+  panic("Error when adding Write to COW page"); // Failed.
 }
 
 //
@@ -67,7 +107,14 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if (r_scause() == WRITE_PAGE_FAULT_SCAUSE) {
+    if (!uncow_page(p->pagetable, r_stval())) goto page_fault_ex;
+    p->trapframe->epc -= 4;
   } else {
+  page_fault_ex:
+    // uint64 pa = walkaddr(p->pagetable, r_stval());
+    // printf("pa: %p\n", pa);
+
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     setkilled(p);
