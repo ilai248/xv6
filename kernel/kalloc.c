@@ -58,7 +58,6 @@ kfree(void *pa)
   acquire(&cowRefLock);
   if (COW_PGCOUNT(pa) > 0) { // Is pa used?
     if (--COW_PGCOUNT(pa) > 0) { // Decrement pa ref count.
-      // printf("Decremented Count: %d\n", COW_PGCOUNT(pa));
       release(&cowRefLock);
       return;
     }

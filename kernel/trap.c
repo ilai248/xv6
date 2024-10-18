@@ -31,6 +31,7 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+// Returns: 0 if failed, 1 on success.
 int uncow_page(pagetable_t pagetable, uint64 va) {
   // Get the page of va.
   va = PGROUNDDOWN(va);
@@ -54,13 +55,11 @@ int uncow_page(pagetable_t pagetable, uint64 va) {
   uvmunmap(pagetable, va, 1 /* Unmap 1 Page */, 0 /* Don't Free */);
   if(mappages(pagetable, va, PGSIZE, (uint64)mem, flags) != 0){
     kfree(mem);
-    // printf("ERROR\n");
     goto err;
   }
 
   // Decrease the page's refcount.
   acquire(&cowRefLock);
-  // printf("Uncopying: %p, count: %d (is free?)\n", pa, COW_PGCOUNT(pa));
   --COW_PGCOUNT(pa);
   release(&cowRefLock);
   return 1; // Success.
