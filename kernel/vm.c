@@ -356,14 +356,19 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
+    printf("ref count: %d\n", COW_PGCOUNT(walkaddr(pagetable, va0)));
+    printf("will uncow %p PA %p %d\n", va0, walkaddr(pagetable, va0), uncow_page(pagetable, va0), (int)*src);
+    // uncow_page(pagetable, va0); // uncow the page in-case it is in cow state.
+    
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
+    if(pa0 == 0) {
+      printf("PA not found!");
       return -1;
+    }
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
 
-    uncow_page(pagetable, va0); // uncow the page incase it is in cow state.
     memmove((void *)(pa0 + (dstva - va0)), src, n);
 
     len -= n;

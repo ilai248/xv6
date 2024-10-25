@@ -31,7 +31,7 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
-// Returns: 0 if failed, 1 on success.
+// Returns: 0 if failed (not a cow page), 1 on success.
 int uncow_page(pagetable_t pagetable, uint64 va) {
   // Get the page of va.
   va = PGROUNDDOWN(va);
@@ -39,7 +39,7 @@ int uncow_page(pagetable_t pagetable, uint64 va) {
   uint64 pa;
   uint flags;
   char *mem;
-  pte_t* pte = walk(pagetable, r_stval(), 0);
+  pte_t* pte = walk(pagetable, va, 0);
   if (!(*pte & PTE_COW)) return 0; // Fail if not a COW page.
 
   if((*pte & PTE_V) == 0)
@@ -107,6 +107,7 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else if (r_scause() == WRITE_PAGE_FAULT_SCAUSE) {
+    printf("trap: %p\n", r_stval());
     if (!uncow_page(p->pagetable, r_stval())) goto page_fault_ex;
     p->trapframe->epc -= 4;
   } else {
