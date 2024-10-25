@@ -131,7 +131,7 @@ filetest()
   
   buf[0] = 99;
 
-  for(int i = 0; i < 1; i++){
+  for(int i = 0; i < 4; i++){
     if(pipe(fds) != 0){
       printf("pipe() failed\n");
       exit(-1);
@@ -142,9 +142,7 @@ filetest()
       exit(-1);
     }
     if(pid == 0){
-      // printf("1 sec\n"); // SUCCESS
       sleep(1);
-      printf("1 sec\n"); // wrong value
       if(read(fds[0], buf, sizeof(i)) != sizeof(i)){
         printf("error: read failed\n");
         exit(1);
@@ -152,19 +150,15 @@ filetest()
       sleep(1);
       int j = *(int*)buf;
       if(j != i){
-        printf("2 sec: %p EXP=%d GOT=%d\n", buf, i, j);
         printf("error: read the wrong value\n");
         exit(1);
       }
       exit(0);
     }
-
-    // printf("Will Write\n");
     if(write(fds[1], &i, sizeof(i)) != sizeof(i)){
       printf("error: write failed\n");
       exit(-1);
     }
-    // printf("Has Wrote\n");
   }
 
   int xstatus = 0;
@@ -186,14 +180,14 @@ filetest()
 int
 main(int argc, char *argv[])
 {
-  //  simpletest();
+  simpletest();
 
   // check that the first simpletest() freed the physical memory.
-  //  simpletest();
+  simpletest();
 
-  //  threetest();
-  //  threetest();
-  //  threetest();
+  threetest();
+  threetest();
+  threetest();
 
   filetest();
 

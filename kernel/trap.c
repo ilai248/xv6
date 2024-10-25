@@ -107,7 +107,6 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else if (r_scause() == WRITE_PAGE_FAULT_SCAUSE) {
-    printf("trap: %p\n", r_stval());
     if (!uncow_page(p->pagetable, r_stval())) goto page_fault_ex;
     p->trapframe->epc -= 4;
   } else {
