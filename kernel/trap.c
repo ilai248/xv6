@@ -108,7 +108,7 @@ usertrap(void)
     // ok
   } else if (r_scause() == WRITE_PAGE_FAULT_SCAUSE) {
     if (!uncow_page(p->pagetable, r_stval())) goto page_fault_ex;
-    p->trapframe->epc -= 4;
+    //  p->trapframe->epc -= 4;
   } else {
   page_fault_ex:
     // uint64 pa = walkaddr(p->pagetable, r_stval());
